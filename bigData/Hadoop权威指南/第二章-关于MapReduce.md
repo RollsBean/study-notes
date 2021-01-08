@@ -1,13 +1,16 @@
 ### 关于MapReduce
+---
+<br>
 
 #### 使用Hadoop分析数据
-
-<br/>
+---
 
 ##### map阶段和reduce阶段
 
 map阶段输入原始数据，map函数可以选取需要的字段并进行逻辑过滤，比如过滤掉不符合条件的数据。map函数的输出会发送给reduce函数，
 这一过程需要根据键值对/值对进行排序和分组，也就是reduce函数会根据特定key进行分组，将相同的key的value放到一个集合中，最后再计算结果
+
+![hadoop-map-reduce](../../image/bigData/Hadoop权威指南/hadoop-map-reduce.png)
 
 ##### Java MapReduce
 
@@ -21,6 +24,7 @@ MapReduce作业， `JobConf`对象指定作业执行规范，指定文件输入�
 静态函数 `runJob()`会提交作业并等待完成。
 
 #### 数据流
+---
 
 作业job是客户端需要执行的一个工作单元，它包括输入数据，MapReduce程序和配置信息。Hadoop将一个作业分为多个小任务task执行，其中
 包括两类：map任务和reduce任务。
@@ -41,5 +45,6 @@ map任务会将其**输出写入本地磁盘**，而非HDFS，这是因为map的
 ![hadoop-shuffle](../../image/bigData/Hadoop权威指南/hadoop-shuffle.gif)
 
 #### Hadoop的Streaming
+---
 
 Hadoop提供了MapReduce的API，允许非Java语言编写map函数和reduce函数，支持Ruby,Python
