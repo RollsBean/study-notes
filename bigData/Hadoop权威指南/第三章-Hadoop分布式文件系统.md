@@ -96,9 +96,60 @@ Thrift API 通过把Hadoop文件系统包装成 Apache Thrift服务来访问。�
 
 使用FTP协议与HDFS交互。
 
+### 数据流
+
+#### 读文件
+
+![hadoop-data-stream-read](../../image/bigData/Hadoop权威指南/hadoop-data-stream-read.jpg)
+
+如上图所示，读文件过程按下面的顺序进行：
+1. 客户端调用FileSyste对象的open()函数来打开文件（步骤1），这个对象是分布式文件系统的一个实例。
+2. DFS 使用RPC调用namenode，确定文件起始块位置（步骤2）。每一个块，namenode返回存有该块的副本的datanode地址。这些datanode根据他们与客户端的距离来排序（
+根据网络拓扑）。如果客户端本身就是一个datanode并保存有相应数据块复本时，该节点将从本地datanode中读取数据。DFS返回给客户端**FSDataInputStream**
+对象读取数据，管理datanode和namenode的I/O。
+3. 客户端对上面这个流调用read()方法（步骤3），**DFSDataInputStream**将连接距离最近的datanode，并对数据流反复调用read()方法（步骤4），读取到块
+的末端后，关闭连接，再寻找其他下一块最佳datanode（步骤5）。
+4. 客户端从流中读取数据是按照打开**DFSDataInputStream**与datanode新建连接的顺序读取，它也需要询问namenode来检索下一批所需块的datanode位置。
+一旦客户端完成读取，就对**FSDataInputStream**调用close()方法（步骤6）。
+
+读取数据时，如果**FSDataInputStream**与datanode通信时遇到错误，它便从另一个最邻近的datanode读取数据。它也会记住故障节点，防止出现反复读取该节点后续的块。
+**FSDataInputStream**也会做校验和确认数据是否完整，如果发现块有损坏，它会在读取块复本前通知namenode。
+
+namenode告知客户端每个块最佳datanode地址，不保存数据，数据流分散在集群的所有datanode上，所以datanode可以扩展到大量的并发客户端。同时，namenode仅返回块
+位置的请求（信息存储在内存，高效）。
+
+##### 网络拓扑与Hadoop
+
+>节点、机架、数据中心  
+>衡量两个节点带宽方法：将网络看成一棵树，两个节点距离是到最近的共同祖先的距离之和。  
+>Hadoop无法自行定义网络拓扑结构，它需要人工配置。  
+
+##### 总结：
+
+简单来说写文件的顺序就是请求分布式文件系统打开文件，DFS会调用namenode检索datanode地址，然后返回给客户端流对象，客户端通过流与datanode交互读取数据，
+读取到块末端，关闭流，再读下一个块，读完一批，客户端再请求下一批datanode的地址，继续读。
 
 
+#### 写文件
 
+![hadoop-data-stream-write](../../image/bigData/Hadoop权威指南/hadoop-data-stream-write.jpg)
+
+如上图所示，读文件过程按下面的顺序进行：
+1.客户端对 **DistributedFileSystem**对象调用 create() 函数创建文件（步骤1）。
+2.DistributedFileSystem 对namenode创建RPC调用，在命名空间创建一个新文件（步骤2）。namenode执行检查确保该文件不存在，并且客户端有创建文件的权限。
+检查通过，namenode就记录一条记录，否则，文件创建失败并向客户端抛出IOException。
+3.DFS（代表DistributedFileSystem缩写）向客户端返回一个 FSDataOutputStream 对象，由此客户端开始写入数据。写入时（步骤3），DFSDataOutputStream
+将数据分成一个个的数据包并写入内部队列（数据队列 data queue）。
+4.**DataStreamer**处理数据队列，它会根据datanode列表来要求namenode分配新块存储数据备份。DataStreamer将数据包流式传输到管线第一个dataname，再依次写入（步骤4）。
+5.写入后，内部还有一个确认队列（ack queue），所有确认信息收到后，数据包会被删除（步骤5）。
+6.写入完成后，对数据流调用close()方法（步骤6）。
+7.close()方法会将剩余的数据写入datanode管线中，等待namenode确认（步骤7）。
+
+
+写入期间（5.）发故障，则执行以下操作：
+1. 关闭管线，把数据包添加回数据队列。确保下游datanode不会漏掉。
+2. 给存储在另一个正常datanode的数据块一个新标识，并将标识传给datanode，以便故障恢复后可以删除此数据块。
+3. 从管线中删除此数据节点，并把数据写入剩下的datanode。块复本量不足时，要在另一个节点创建一个新复本。
 
 
 
