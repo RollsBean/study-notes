@@ -151,6 +151,41 @@ namenode告知客户端每个块最佳datanode地址，不保存数据，数据�
 2. 给存储在另一个正常datanode的数据块一个新标识，并将标识传给datanode，以便故障恢复后可以删除此数据块。
 3. 从管线中删除此数据节点，并把数据写入剩下的datanode。块复本量不足时，要在另一个节点创建一个新复本。
 
+#### 一致模型
+
+对**FSDataOutputStream**调用sync()方法，当sync()方法返回横杆后，对所有新reader而言，HDFS能保证到目前写入的数据均可见且一致。
+
+#### 通过distcp并行复制
+
+_distcp_ ：分布式复制程序。可以并行处理这些文件
+
+>hadoop distcp hdfs://namenode1/foo hdfs://namenode2/bar  
+
+distcp实现原理：作为MapReduce作业来实现，该复制作业是通过集群中并行运行的map来完成。
+
+在不同HDFS版本的集群上使用 _distcp_ 复制数据，并使用 _hdfs_ 协议，会导致作业失败，因为两个版本的RPC系统不兼容。如果想弥补，就需要使用
+基于只读HTTP协议的HFTP文件系统从源文件系统读数据。
+
+>hadoop distcp hdfs://namenode1:50070/foo hdfs://namenode2/bar  
+
+需要指定源namenode的web端口，默认50070.
+
+#### Hadoop存档
+
+每个文件按块存，每个块的元数据存储在 namenode的内存中，因此如果存小文件会非常低效，因为这样会耗尽namenode大量的内存。
+
+Hadoop 存档文件或HAR文件，是更搞笑的文件存档工作。
+
+#### 存档工具使用
+
+Hadoop存档 通过 _archive_ 工具根据一组文件创建而来。该工具运行MapReduce作业来并行处理文件。
+
+例：文件夹 _/my_files 下有很多小文件
+
+> // 如下，使用archive工具，将/my/files下的文件存档到 /my 文件夹下，名字是 files.har  
+>hadoop archive -archiveName files.har /my/files /my  
+
+存档文件是HAR 文件，它由两个索引文件和部分文件集合组成。HAR文件不能被修改，想删除时需要递归删除，因为对于基础文件系统来说，它是一个目录。
 
 
 
