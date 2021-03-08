@@ -79,7 +79,33 @@ ObjectWritable 是对Java基本类型（String,enum,Writable,null或其组成数
 
 大多数MapReduce框架使用Writable类型的键和值，这不是强制规定。只要有机制能进行类型与二进制的转换即可。
 
-为了支持这个机制，Hadoop有一个针对可替换**序列化框架**(serialization framework)的API.
+为了支持这个机制，Hadoop有一个针对可替换**序列化框架**(serialization framework)的API。
+
+Avro 规范精确定义所有实现都必须支持的二进制格式。
+
+Avro 有丰富的**数据模式解析**（data schema resolution）能力。读数据模式不必与写数据模式 模式相同。
 
 
 ### Avro
+
+**Apache Avro** 是独立于编程语言的数据序列化系统。旨在解决Writable缺乏语言的可移植性。
+
+#### Avro 数据类型和模式
+
+Avro 基本类型
+
+![Avro-simple-type](../../image/bigData/Hadoop权威指南/Avro-simple-type.jpg)
+
+Avro 复杂类型
+
+![Avro-complex-type](../../image/bigData/Hadoop权威指南/Avro-complex-type.jpg)
+
+#### 内存中的序列化与反序列化
+
+![Avro-serial-code](../../image/bigData/Hadoop权威指南/Avro-serial-code.jpg)
+
+`DatumWriter`(datum：数据、基准)将数据对象翻译成 **Encoder**对象可理解的类型，然后使用 `Encoder`写出到输出流。
+
+#### 模式解析
+
+可以使用不同的写入模式和读取模式读写数据。
