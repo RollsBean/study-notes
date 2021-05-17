@@ -26,7 +26,13 @@ TCP 是个"流"协议，流没有界限，所以一个完整的包可能会被TC
 如下图所示：
 ![TCP pack&unpack reason](../../image/java/Netty权威指南/TCP%20pack&unpack%20reason.png)
 
-### 粘包问题的解决策略
+补充:
+**MTU**：**Maximum Transmission Unit**，缩写MTU，中文名是最大传输单元，即物理接口（数据链路层）提供给其上层最大一次传输数据的大小，一般为1500；
+**MSS**：**Maximum Segment Size**，最大TCP分段大小，不包含TCP头和 option，只包含TCP Payload ，TCP用来限制自己每次发送的最大分段尺寸。
+
+参考：MTU介绍 [https://developer.aliyun.com/article/222535](https://developer.aliyun.com/article/222535)
+
+### 4.1.3 粘包问题的解决策略
 
 底层TCP 无法理解上层业务数据，所以需要通过上层的应用协议栈设计来解决（应用层协议），主流解决方案：
 
