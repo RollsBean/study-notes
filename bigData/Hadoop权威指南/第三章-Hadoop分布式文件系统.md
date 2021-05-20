@@ -135,15 +135,15 @@ namenode告知客户端每个块最佳datanode地址，不保存数据，数据�
 ![hadoop-data-stream-write](../../image/bigData/Hadoop权威指南/hadoop-data-stream-write.jpg)
 
 如上图所示，读文件过程按下面的顺序进行：
-1.客户端对 **DistributedFileSystem**对象调用 create() 函数创建文件（步骤1）。
-2.DistributedFileSystem 对namenode创建RPC调用，在命名空间创建一个新文件（步骤2）。namenode执行检查确保该文件不存在，并且客户端有创建文件的权限。
+1. 客户端对 **DistributedFileSystem**对象调用 create() 函数创建文件（步骤1）。
+2. DistributedFileSystem 对namenode创建RPC调用，在命名空间创建一个新文件（步骤2）。namenode执行检查确保该文件不存在，并且客户端有创建文件的权限。
 检查通过，namenode就记录一条记录，否则，文件创建失败并向客户端抛出IOException。
-3.DFS（代表DistributedFileSystem缩写）向客户端返回一个 FSDataOutputStream 对象，由此客户端开始写入数据。写入时（步骤3），DFSDataOutputStream
+3. DFS（代表DistributedFileSystem缩写）向客户端返回一个 FSDataOutputStream 对象，由此客户端开始写入数据。写入时（步骤3），DFSDataOutputStream
 将数据分成一个个的数据包并写入内部队列（数据队列 data queue）。
-4.**DataStreamer**处理数据队列，它会根据datanode列表来要求namenode分配新块存储数据备份。DataStreamer将数据包流式传输到管线第一个dataname，再依次写入（步骤4）。
-5.写入后，内部还有一个确认队列（ack queue），所有确认信息收到后，数据包会被删除（步骤5）。
-6.写入完成后，对数据流调用close()方法（步骤6）。
-7.close()方法会将剩余的数据写入datanode管线中，等待namenode确认（步骤7）。
+4. **DataStreamer**处理数据队列，它会根据datanode列表来要求namenode分配新块存储数据备份。DataStreamer将数据包流式传输到管线第一个dataname，再依次写入（步骤4）。
+5. 写入后，内部还有一个确认队列（ack queue），所有确认信息收到后，数据包会被删除（步骤5）。
+6. 写入完成后，对数据流调用close()方法（步骤6）。
+7. close()方法会将剩余的数据写入datanode管线中，等待namenode确认（步骤7）。
 
 
 写入期间（5.）发故障，则执行以下操作：
