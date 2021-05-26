@@ -116,6 +116,43 @@ map任务或reduce任务运行失败，任务JVM会在退出之前向父applicat
 
 ### 7.3 shuffle和排序
 
+MapReduce 确保每个reducer的输入都是按键排序的。系统执行排序、将map 输出作为输入传给 reducer 的过程称为 _shuffle_。
+
+#### 7.3.1 map端
+
+map 函数执行并不是简单地将输出写到磁盘。它会利用缓冲的方式写到内存并出于效率考虑进行预排序。
+
+如下图示，每个map任务都有一个环形缓冲区用于缓存任务输出，默认情况下，缓存区大小是 100MB，可以通过参数 **mapreduce.task.io.sort.mb**调整，一旦
+达到阈值（默认80%），一个后台线程就开始把内存溢出（spill）到磁盘。在溢出写到磁盘的过程中，map会继续写出到缓冲区，如果被填满，map任务就会被阻塞掉。
+
+![MapReduce sort&shuffle](../../image/bigData/Hadoop权威指南/MapReduce%20sort&shuffle.png)
+
+写磁盘之前，先根据reducer把数据划分成相应的分区（partition）。在每个分区中，后台线程按键进行内存排序。
+
+每次内存缓冲区达到溢出阈值，就新建一个溢出文件（spill file），因此，map任务在写完最后一个输出记录后，会有几个溢出文件。在任务完成前，溢出文件被合并
+成一个已分区已排序的输出文件。配置属性 **mapreduce.task.io.sort.factor** 控制一次最多能合并多少流，默认是10。
+
+如果至少存在三个溢出文件，则 combiner 就会在输出文件写磁盘前运行，使输出结果更紧凑，减少了写到磁盘的数据和传递给reducer的数据。如果只有一两个溢出
+文件，那么就不值得使用 combiner函数，这样就不会允许 combiner函数（通过 **mapreduce.map.combine.minspills** 属性设置，默认是3）。
+
+#### 7.3.2 reduce端
+
+如果map 输出相当小，会被复制到 reduce 任务JVM的内存，map输出被复制到磁盘。
+
+复制完所有map输出后，reduce任务进入排序阶段，这个阶段将合并map输出。
+
+最后，即reduce阶段，直接把数据输入reduce函数。
+
+#### 7.3.3 配置调优
+
+map 阶段配置
+
+![MapReduce map optimize params](../../image/bigData/Hadoop权威指南/map%20optimize%20params.png)
+
+reduce阶段配置
+
+![MapReduce reduce optimize params](../../image/bigData/Hadoop权威指南/reduce%20optimize%20params.png)
+
 ### 7.4 任务的执行
 
 
