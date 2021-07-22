@@ -97,15 +97,143 @@ Flink 程序都是通过延迟计算的方式执行，只有在调用了 `execut
 
 ## 转换操作
 
+转换分为四类：
 
+1. 作用于单个事件的基本转换。
+2. 针对相同键值事件的 KeyedStream 转换。
+3. 将多条数据流合并为一条或将一条拆分为多条流的转换。
+4. 对流中的事件进行重新组织的分发转换。
 
 ### 基本转换
 
+#### Map
+
+通过调用 DataStream.map() 进行转换。可以自定义 MapFunction 来自定义转换逻辑（实现 MapFunction 接口）。
+
+```scala
+// T: 输入， O：输出
+MapFunction[T, O]
+  > map(T): O
+```
+
+也可以使用 Lambda 函数
+
+```scala
+dataStream.map(r => r.id)
+```
+
+#### Filter
+
+布尔条件，过滤条件。使用 FilterFunction 或 Lambda 函数实现布尔条件函数。
+
+```scala
+// T: 输入
+FilterFunction[T, O]
+  > filter(T): Boolean
+```
+
+#### FlatMap
+
+类似 Map，但是每个输入可以产生任意个输出事件。
+
+```scala
+// T: 输入， O：输出
+FlatMapFunction[T, O]
+  > flatMap(T, Collector[O]): Unit
+```
+
 ### 基于 KeyedStream 的转换
+
+将事件按键值分配到多条独立的子流中。
+
+> 相同的键值的事件可以访问相同的状态。如果状态存储在内存，需要注意，必须清理不活跃的键值，不然可能导致内存问题。  
+
+#### keyBy
+
+将一个 DataStream 转化为 KeyedStream。
+
+#### 滚动聚合
+
+滚动聚合转换作用于 KeyedStream 上，它会生成一个包含聚合结果（求和、最小值等）的 DataStream。每当有新的事件来，算子都会更新相应的聚合结果。
+
+DataStream API 提供来以下滚动聚合方法：
+
+**sum()**  
+&nbsp;&nbsp;&nbsp;&nbsp;滚动求和  
+
+**min()**  
+&nbsp;&nbsp;&nbsp;&nbsp;滚动计算最小值  
+
+**max()**
+&nbsp;&nbsp;&nbsp;&nbsp;滚动计算最大值  
+
+**minBy()**
+&nbsp;&nbsp;&nbsp;&nbsp;滚动计算输入流中迄今为止的最小值，并返回该事件
+
+**maxBy()**
+&nbsp;&nbsp;&nbsp;&nbsp;滚动计算输入流中迄今为止的最大值，并返回该事件
+
+**Reduce**
+
+reduce 将 ReduceFunction 应用在 KeyedStream 上，每个到来的事件都和 reduce 结果进行一次组合，从而产生一个新的 DataStream。reduce 转换
+不会改变数据类型。
+
+```scala
+// T: 元素类型
+ReduceFunction[T]
+  > reduce(T, T): T
+```
+
 
 ### 多流转换
 
+**Union**
+
+DataStream.union() 方法可以合并两条或多条类型相同的 DataStream，生成一个新的 DataStream。
+
+union 执行过程中，两条流的事件以 FIFO 的方式合并，其顺序无法得到保证。此外，union 算子不会对数据去重。
+
+**Connect，coMap，coFlatMap**
+
+connect() 函数将两条流联结，返回一个 ConnectedStreams，它提供了 map() 和 flatMap() 方法，它们分别接收一个 CoMapFunction 和 CoFlatMapFunction
+作为参数。
+
+```scala
+// IN1: 第一个输入流的类型
+// IN2：第二个输入流的类型
+CoMapFunction[IN1, IN2, OUT]
+  > map1(IN1): OUT
+  > map2(IN2): OUT
+```
+
+**Split 和 Select**
+
+split 是 union 的逆操作。
+
+DataStream.split() 方法会返回一个 SplitStream 对象，它提供了 select() 方法。
+
 ### 分发转换
+
+随机  
+&nbsp;&nbsp;&nbsp;&nbsp;利用 DataStream.shuffle() 方法实现随机数据交换策略。它会随机地将记录发往后继算子的并行任务。
+
+轮流  
+&nbsp;&nbsp;&nbsp;&nbsp;rebalance() 会以轮流方式均匀分配给后继任务。
+
+重调  
+&nbsp;&nbsp;&nbsp;&nbsp;rescale() 也会以轮流方式对事件进行分发。
+
+下图展示了轮流（图a）和重调（图b）的连接模式。
+![rebalance&rescale](../../image/bigData/基于Apache%20Flink的流处理/rebalance&rescale.png)
+
+广播  
+&nbsp;&nbsp;&nbsp;&nbsp;broadcast() 方法将输入流中国的事件复制并发往所有下游算子的并行任务。
+
+全局  
+&nbsp;&nbsp;&nbsp;&nbsp;global() 方法将输入流所有事件发往下游算子的第一个并行任务。所有事件发往同一任务可能会影响程序性能。
+
+自定义  
+&nbsp;&nbsp;&nbsp;&nbsp;可以利用 partitionCustom() 方法自己定义分区策略。
 
 ## 设置并行度
 
